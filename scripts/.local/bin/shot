@@ -1,0 +1,26 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+mode="${1:-}"          # region|full
+action="${2:-copy}"    # copy|save|both
+
+dir="${XDG_PICTURES_DIR:-$HOME/Pictures}/Screenshots"
+ts="$(date +%F_%H-%M-%S)"
+file="$dir/ss_${ts}.png"
+
+mkdir -p "$dir"
+
+copy_png() { xclip -selection clipboard -t image/png -i; }
+
+case "${mode}:${action}" in
+  region:copy) maim -s | copy_png ;;
+  region:save) maim -s "$file" ;;
+  region:both) maim -s | tee "$file" | copy_png ;;
+
+  full:copy)   maim | copy_png ;;
+  full:save)   maim "$file" ;;
+  full:both)   maim | tee "$file" | copy_png ;;
+
+  *) echo "Usage: shot {region|full} {copy|save|both}" >&2; exit 2 ;;
+esac
+

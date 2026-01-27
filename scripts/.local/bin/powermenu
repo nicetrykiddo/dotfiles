@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+choice=$(
+  printf "Lock\nSleep\nHibernate\nReboot\nPower Off\nLogout\n" |
+  rofi -dmenu -i -p "Power"
+)
+
+case "${choice}" in
+  Lock) betterlockscreen -l blur ;;
+  Sleep) betterlockscreen -l blur; sleep 1; systemctl suspend ;;
+  Hibernate) betterlockscreen -l blur; sleep 1; systemctl hibernate ;;
+  Reboot) systemctl reboot ;;
+  "Power Off") systemctl poweroff ;;
+  Logout) i3-msg exit ;;
+  *) exit 0 ;;
+esac

@@ -1,0 +1,39 @@
+#!/bin/bash
+# Power-aware idle management script
+
+# Check if we're on battery or AC power
+is_on_battery() {
+    # Check AC adapter status
+    if [[ -f /sys/class/power_supply/ADP*/online ]]; then
+        cat /sys/class/power_supply/ADP*/online | grep -q "0"
+    elif [[ -f /sys/class/power_supply/AC*/online ]]; then
+        cat /sys/class/power_supply/AC*/online | grep -q "0"  
+    else
+        # Fallback: check battery status
+        cat /sys/class/power_supply/BAT*/status | grep -q "Discharging"
+    fi
+}
+
+# Lock and potentially hibernate based on power status
+lock_and_hibernate() {
+    # First lock the screen
+    ~/.local/bin/lock &
+    
+    # Wait 10 minutes (600 seconds) while locked
+    sleep 600
+    
+    # Check if still locked and on battery
+    if pgrep -x "i3lock" > /dev/null; then
+        if is_on_battery; then
+            # On battery: hibernate for power saving
+            systemctl hibernate
+        else
+            # On AC power: stay locked, do nothing
+            echo "On AC power, staying locked"
+        fi
+    fi
+}
+
+# Export function so xidlehook can use it
+export -f lock_and_hibernate
+export -f is_on_battery

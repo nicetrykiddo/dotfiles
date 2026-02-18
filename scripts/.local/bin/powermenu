@@ -2,16 +2,34 @@
 set -euo pipefail
 
 choice=$(
-  printf "Lock\nSleep\nHibernate\nReboot\nPower Off\nLogout\n" |
-  rofi -dmenu -i -p "Power"
+  printf "  Lock\n  Sleep\n  Hibernate\n  Reboot\n  Shutdown\n  Logout\n" |
+  rofi -dmenu -i -p "Power" -theme catppuccin-lavrent-mocha
 )
 
 case "${choice}" in
-  Lock) betterlockscreen -l blur ;;
-  Sleep) betterlockscreen -l blur; sleep 1; systemctl suspend ;;
-  Hibernate) betterlockscreen -l blur; sleep 1; systemctl hibernate ;;
-  Reboot) systemctl reboot ;;
-  "Power Off") systemctl poweroff ;;
-  Logout) i3-msg exit ;;
+  "  Lock") ~/.local/bin/lock ;;
+  "  Sleep") ~/.local/bin/lock; sleep 1; systemctl suspend ;;
+  "  Hibernate") ~/.local/bin/lock; sleep 1; systemctl hibernate ;;
+  "  Reboot") systemctl reboot ;;
+  "  Shutdown") systemctl poweroff ;;
+  "  Logout")
+    {
+      pkill -u "$USER" -f "dunst|polybar|picom|compton|conky|redshift" 2>/dev/null || true
+      sock="$(i3 --get-socketpath 2>/dev/null || true)"
+      [ -n "$sock" ] && i3-msg -s "$sock" exit >/dev/null 2>&1 || true
+      sleep 1
+      if [ -n "${DISPLAY-}" ]; then
+        pkill -u "$USER" -f "^.*$DISPLAY" 2>/dev/null || true
+      fi
+      if [ -n "${XDG_SESSION_ID-}" ]; then
+        loginctl kill-session "$XDG_SESSION_ID" 2>/dev/null || true
+      fi
+      sleep 0.5
+      pkill -9 -u "$USER" 2>/dev/null || true
+    } >/dev/null 2>&1 &
+
+    exit 0
+    ;;
   *) exit 0 ;;
 esac
+

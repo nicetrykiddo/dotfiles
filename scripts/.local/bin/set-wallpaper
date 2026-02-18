@@ -1,0 +1,27 @@
+#!/bin/bash
+# Set wallpaper on startup
+
+CACHE_FILE="$HOME/.cache/current_wallpaper"
+DEFAULT_WALLPAPER="$HOME/Pictures/wallpapers/default.jpg"
+
+# Restore last wallpaper if exists
+if [ -f "$CACHE_FILE" ]; then
+    wallpaper=$(cat "$CACHE_FILE")
+    if [ -f "$wallpaper" ]; then
+        feh --bg-fill "$wallpaper"
+        exit 0
+    fi
+fi
+
+# Fall back to default wallpaper
+if [ -f "$DEFAULT_WALLPAPER" ]; then
+    feh --bg-fill "$DEFAULT_WALLPAPER"
+    echo "$DEFAULT_WALLPAPER" > "$CACHE_FILE"
+else
+    # Use first available wallpaper
+    first_wallpaper=$(find "$HOME/Pictures/wallpapers" -type f \( -iname "*.jpg" -o -iname "*.jpeg" -o -iname "*.png" \) | head -n 1)
+    if [ -n "$first_wallpaper" ]; then
+        feh --bg-fill "$first_wallpaper"
+        echo "$first_wallpaper" > "$CACHE_FILE"
+    fi
+fi

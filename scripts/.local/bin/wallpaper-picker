@@ -1,0 +1,47 @@
+#!/bin/bash
+# Wallpaper picker with rofi and catppuccin theme
+
+WALLPAPER_DIR="$HOME/Pictures/wallpapers"
+CACHE_FILE="$HOME/.cache/current_wallpaper"
+
+# Create wallpaper directory if it doesn't exist
+mkdir -p "$WALLPAPER_DIR"
+
+# Check if there are any wallpapers
+wallpapers=$(find "$WALLPAPER_DIR" -type f \( -iname "*.jpg" -o -iname "*.jpeg" -o -iname "*.png" \) 2>/dev/null)
+
+if [ -z "$wallpapers" ]; then
+    notify-send "Wallpaper Picker" "No wallpapers found in $WALLPAPER_DIR" -u normal
+    exit 1
+fi
+
+# Get current wallpaper if exists
+current=""
+if [ -f "$CACHE_FILE" ]; then
+    current=$(cat "$CACHE_FILE")
+fi
+
+# Create rofi menu with preview tooltips
+selected=$(echo "$wallpapers" | while read -r wp; do
+    basename "$wp"
+done | rofi -dmenu \
+    -i \
+    -p "🖼️  Wallpaper" \
+    -theme-str 'window { width: 40%; }' \
+    -theme-str 'listview { lines: 10; }' \
+    -theme-str '@import "~/.config/rofi/theme.rasi"')
+
+if [ -n "$selected" ]; then
+    # Find the full path
+    wallpaper_path=$(echo "$wallpapers" | grep "/$selected$")
+    
+    if [ -f "$wallpaper_path" ]; then
+        # Set wallpaper with feh
+        feh --bg-fill "$wallpaper_path"
+        
+        # Save current wallpaper
+        echo "$wallpaper_path" > "$CACHE_FILE"
+        
+        notify-send "Wallpaper Changed" "Now using: $selected" -u low
+    fi
+fi

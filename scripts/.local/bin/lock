@@ -1,0 +1,45 @@
+#!/bin/bash
+# Simple beautiful lockscreen with catppuccin colors and auto-cleanup
+
+# Directory for wallpapers
+WALLPAPER_DIR="$HOME/Pictures/wallpapers"
+LOCKSCREEN_WALLPAPER="$WALLPAPER_DIR/lockscreen.jpg"
+
+# Check if custom lockscreen wallpaper exists 
+if [[ ! -f "$LOCKSCREEN_WALLPAPER" ]]; then
+    # If no custom wallpaper, try to find any wallpaper
+    if [[ -d "$WALLPAPER_DIR" ]]; then
+        LOCKSCREEN_WALLPAPER=$(find "$WALLPAPER_DIR" -type f -iname "*.jpg" -o -iname "*.png" | head -1)
+    fi
+    
+    # If still no wallpaper, use current desktop background
+    if [[ ! -f "$LOCKSCREEN_WALLPAPER" ]]; then
+        # Create a blurred screenshot as fallback
+        TEMP_SCREENSHOT="/tmp/lockscreen_$$.png"
+        TEMP_BLUR="/tmp/lockscreen_blur_$$.png"
+        
+        scrot "$TEMP_SCREENSHOT"
+        magick "$TEMP_SCREENSHOT" -blur 0x15 "$TEMP_BLUR"
+        LOCKSCREEN_WALLPAPER="$TEMP_BLUR"
+        
+        # Lock screen
+        i3lock \
+            --color=1e1e2e \
+            --image="$LOCKSCREEN_WALLPAPER" \
+            --tiling \
+            --ignore-empty-password \
+            --show-failed-attempts
+        
+        # Clean up screenshots after unlock for privacy
+        rm -f "$TEMP_SCREENSHOT" "$TEMP_BLUR" 2>/dev/null
+        exit
+    fi
+fi
+
+# Lock with beautiful catppuccin colors  
+i3lock \
+    --color=1e1e2e \
+    --image="$LOCKSCREEN_WALLPAPER" \
+    --tiling \
+    --ignore-empty-password \
+    --show-failed-attempts

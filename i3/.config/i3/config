@@ -28,16 +28,16 @@ exec --no-startup-id dex --autostart --environment i3
 # The combination of xss-lock, nm-applet and pactl is a popular choice, so
 # they are included here as an example. Modify as you see fit.
 
-# xss-lock grabs a logind suspend inhibit lock and will use i3lock to lock the
-# screen before suspend. Use loginctl lock-session to lock your screen.
-#exec --no-startup-id xss-lock --transfer-sleep-lock -- i3lock --nofork
+# xss-lock grabs a logind suspend inhibit lock and will lock the screen before suspend (lid close)
+exec --no-startup-id xss-lock --transfer-sleep-lock -- ~/.local/bin/lock
 # Lock screen with custom image
-exec_always --no-startup-id xss-lock --transfer-sleep-lock -- betterlockscreen -l blur
-bindsym $mod+Shift+BackSpace exec --no-startup-id betterlockscreen -l blur
+# Smart power-aware idle management
+exec_always --no-startup-id pkill xidlehook; xidlehook --not-when-fullscreen --timer 300 'bash -c ". ~/.local/bin/idle-manager && lock_and_hibernate"' '' &
+bindsym $mod+Shift+BackSpace exec --no-startup-id ~/.local/bin/lock
 
 # NetworkManager is the most popular way to manage wireless networks on Linux,
 # and nm-applet is a desktop environment-independent system tray GUI for it.
-exec --no-startup-id nm-applet
+exec_always --no-startup-id nm-applet
 
 # Use pactl to adjust volume in PulseAudio.
 set $refresh_i3status killall -SIGUSR1 i3status
@@ -66,7 +66,7 @@ bindsym $mod+Return exec kitty
 bindsym $mod+Shift+q kill
 
 # start dmenu (a program launcher)
-bindsym $mod+d exec --no-startup-id dmenu_run
+bindsym $mod+d exec --no-startup-id dmenu_run -i
 # A more modern dmenu replacement is rofi:
 # bindcode $mod+40 exec "rofi -modi drun,run -show drun"
 # There also is i3-dmenu-desktop which only displays applications shipping a
@@ -74,10 +74,10 @@ bindsym $mod+d exec --no-startup-id dmenu_run
 # bindcode $mod+40 exec --no-startup-id i3-dmenu-desktop
 
 # change focus
-bindsym $mod+j focus left
-bindsym $mod+k focus down
-bindsym $mod+l focus up
-bindsym $mod+semicolon focus right
+bindsym $mod+h focus left
+bindsym $mod+j focus down
+bindsym $mod+k focus up
+bindsym $mod+l focus right
 
 # alternatively, you can use the cursor keys:
 bindsym $mod+Left focus left
@@ -86,10 +86,10 @@ bindsym $mod+Up focus up
 bindsym $mod+Right focus right
 
 # move focused window
-bindsym $mod+Shift+j move left
-bindsym $mod+Shift+k move down
-bindsym $mod+Shift+l move up
-bindsym $mod+Shift+semicolon move right
+bindsym $mod+Shift+h move left
+bindsym $mod+Shift+j move down
+bindsym $mod+Shift+k move up
+bindsym $mod+Shift+l move right
 
 # alternatively, you can use the cursor keys:
 bindsym $mod+Shift+Left move left
@@ -168,6 +168,8 @@ bindsym $mod+Shift+r restart
 #bindsym $mod+Shift+e exec "i3-nagbar -t warning -m 'You pressed the exit shortcut. Do you really want to exit i3? This will end your X session.' -B 'Yes, exit i3' 'i3-msg exit'"
 
 bindsym $mod+Shift+e exec --no-startup-id ~/.local/bin/powermenu
+# Wallpaper picker
+bindsym $mod+p exec --no-startup-id ~/.local/bin/wallpaper-picker
 
 # resize window (you can also use the mouse for that)
 mode "resize" {
@@ -203,9 +205,6 @@ bar {
 	status_command i3status
 }
 
-#---[load picom]---#
-exec_always --no-startup-id picom --config ~/.config/picom/picom.conf
-
 #---[notifications using dunst]---#
 exec --no-startup-id dunst
 
@@ -213,7 +212,7 @@ exec --no-startup-id dunst
 exec --no-startup-id clipmenud
 bindsym $mod+v exec --no-startup-id clipmenu
 
-#---[clipboard]---#
+#---[screenshots]---#
 set $shot ~/.local/bin/shot
 
 # Region select -> clipboard
@@ -228,3 +227,30 @@ bindsym --release Shift+Print exec --no-startup-id $shot full copy
 
 bindsym $mod+Shift+a exec --no-startup-id flameshot gui
 
+#---[bluetooth-applet]---#
+exec_always --no-startup-id blueman-applet
+
+#----[mouse config setup]-----#
+exec_always --no-startup-id xinput set-prop "pointer:E-Signal USB Gaming Mouse" "libinput Accel Profile Enabled" 0, 1
+exec_always --no-startup-id xinput set-prop "pointer:E-Signal USB Gaming Mouse" "libinput Accel Speed" -0.2
+
+#----[volume tray]-----#
+exec_always --no-startup-id trayer --edge top --align right --SetDockType true --SetPartialStrut true --transparent true --alpha 0 &
+exec --no-startup-id pasystray
+
+#----[power manager tray]-----#
+exec --no-startup-id powerkit
+
+#----[picom]----#
+exec_always --no-startup-id picom -b
+
+#----[wallpaper]----#
+exec_always --no-startup-id ~/.local/bin/set-wallpaper
+
+#----[autorandr]----#
+exec_always --no-startup-id autorandr --change --force
+
+exec_always --no-startup-id gnome-keyring-daemon --start --components=secrets
+
+#----[xsettingsd for themes/dark-modes]----#
+exec_always --no-startup-id xsettingsd

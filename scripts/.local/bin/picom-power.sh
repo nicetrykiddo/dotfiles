@@ -1,16 +1,26 @@
 #!/bin/bash
 
-BAT="/org/freedesktop/UPower/devices/battery_BAT1"
+set -euo pipefail
 
-STATE=$(upower -i "$BAT" | grep "state" | awk '{print $2}')
+PROFILE_FILE="/sys/firmware/acpi/platform_profile"
+PROFILE="balanced"
 
-pkill picom
-
-if [ "$STATE" = "discharging" ]; then
-  # Power mode → blur OFF
-  picom --config ~/.config/picom/picom-noblur.conf &
-else
-  # Charging / fully-charged → blur ON
-  picom --config ~/.config/picom/picom-blur.conf &
+if [ -r "$PROFILE_FILE" ]; then
+  PROFILE="$(tr -d '\n' < "$PROFILE_FILE")"
 fi
 
+case "$PROFILE" in
+  low-power)
+    CONFIG="${XDG_CONFIG_HOME:-$HOME/.config}/picom_noblur.conf"
+    ;;
+  *)
+    CONFIG="${XDG_CONFIG_HOME:-$HOME/.config}/picom.conf"
+    ;;
+esac
+
+pkill -x picom 2>/dev/null || true
+
+export DISPLAY="${DISPLAY:-:0}"
+export XAUTHORITY="${XAUTHORITY:-$HOME/.Xauthority}"
+
+exec picom --config "$CONFIG" -b

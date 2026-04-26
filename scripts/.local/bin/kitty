@@ -1,0 +1,23 @@
+#!/bin/bash
+
+set -euo pipefail
+
+KITTY_BIN="/usr/bin/kitty"
+ERR_FILE="$(mktemp)"
+
+cleanup() {
+  rm -f "$ERR_FILE"
+}
+
+trap cleanup EXIT
+
+if "$KITTY_BIN" "$@" 2>"$ERR_FILE"; then
+  exit 0
+fi
+
+if grep -qE 'GLX: Failed to create context|Failed to create GLFWwindow|old/broken OpenGL drivers' "$ERR_FILE"; then
+  exec env __GLX_VENDOR_LIBRARY_NAME=mesa LIBGL_ALWAYS_SOFTWARE=1 "$KITTY_BIN" "$@"
+fi
+
+cat "$ERR_FILE" >&2
+exit 1

@@ -30,6 +30,10 @@ exec --no-startup-id dex --autostart --environment i3
 
 # xss-lock grabs a logind suspend inhibit lock and will lock the screen before suspend (lid close)
 exec --no-startup-id xss-lock --transfer-sleep-lock -- ~/.local/bin/lock
+
+# NVIDIA/X11 tends to leave picom in a bad GLX state after resume.
+# exec_always --no-startup-id ~/.local/bin/login1-sleep-watch &
+
 # Lock screen with custom image
 # Smart power-aware idle management
 exec_always --no-startup-id pkill xidlehook; xidlehook --not-when-fullscreen --timer 300 'bash -c ". ~/.local/bin/idle-manager && lock_and_hibernate"' '' &
@@ -60,13 +64,13 @@ bindsym XF86AudioPrev exec --no-startup-id playerctl previous
 floating_modifier $mod
 
 # start a terminal
-bindsym $mod+Return exec kitty
+bindsym $mod+Return exec --no-startup-id ~/.local/bin/kitty
 
 # kill focused window
 bindsym $mod+Shift+q kill
 
 # start dmenu (a program launcher)
-bindsym $mod+d exec --no-startup-id dmenu_run -i
+bindsym $mod+d exec --no-startup-id env PATH="$HOME/.local/bin:$PATH" dmenu_run -i
 # A more modern dmenu replacement is rofi:
 # bindcode $mod+40 exec "rofi -modi drun,run -show drun"
 # There also is i3-dmenu-desktop which only displays applications shipping a
@@ -217,7 +221,7 @@ set $shot ~/.local/bin/shot
 
 # Region select -> clipboard
 bindsym --release $mod+Shift+s exec --no-startup-id $shot region copy
-# Region select -> save + clipboard (your “flex”)
+# Region select -> save + clipboard
 bindsym --release $mod+Ctrl+Shift+s exec --no-startup-id $shot region both
 
 # Print -> full desktop (all monitors) save + clipboard
@@ -242,7 +246,7 @@ exec --no-startup-id pasystray
 exec --no-startup-id powerkit
 
 #----[picom]----#
-exec_always --no-startup-id picom -b
+exec_always --no-startup-id ~/.local/bin/picom-session
 
 #----[wallpaper]----#
 exec_always --no-startup-id ~/.local/bin/set-wallpaper
@@ -254,3 +258,6 @@ exec_always --no-startup-id gnome-keyring-daemon --start --components=secrets
 
 #----[xsettingsd for themes/dark-modes]----#
 exec_always --no-startup-id xsettingsd
+
+#----[firefox]-------#
+bindsym $mod+Shift+f exec --no-startup-id firefox

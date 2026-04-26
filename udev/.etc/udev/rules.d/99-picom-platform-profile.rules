@@ -1,0 +1,1 @@
+ACTION=="change", SUBSYSTEM=="platform-profile", ATTR{name}=="lenovo-wmi-gamezone", RUN+="/usr/bin/env bash -lc '/home/nicetrykiddo/.local/bin/picom-platform-profile-hook.sh'"

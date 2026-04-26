@@ -12,10 +12,29 @@ mkdir -p "$dir"
 
 copy_png() { xclip -selection clipboard -t image/png -i; }
 
+restart_picom() {
+  if [[ "${picom_was_running:-0}" -eq 1 ]]; then
+    "${HOME}/.local/bin/picom-power.sh" >/dev/null 2>&1 || true
+  fi
+}
+
+run_region_shot() {
+  picom_was_running=0
+  if pgrep -x picom >/dev/null 2>&1; then
+    picom_was_running=1
+    pkill -x picom 2>/dev/null || true
+    # Give X a beat to drop compositor effects before invoking selection.
+    sleep 0.1
+  fi
+
+  trap restart_picom EXIT
+  maim -s "$@"
+}
+
 case "${mode}:${action}" in
-  region:copy) maim -s | copy_png ;;
-  region:save) maim -s "$file" ;;
-  region:both) maim -s | tee "$file" | copy_png ;;
+  region:copy) run_region_shot | copy_png ;;
+  region:save) run_region_shot "$file" ;;
+  region:both) run_region_shot | tee "$file" | copy_png ;;
 
   full:copy)   maim | copy_png ;;
   full:save)   maim "$file" ;;
@@ -23,4 +42,3 @@ case "${mode}:${action}" in
 
   *) echo "Usage: shot {region|full} {copy|save|both}" >&2; exit 2 ;;
 esac
-

@@ -1,0 +1,10 @@
+#!/bin/bash
+
+set -euo pipefail
+
+# Give the NVIDIA stack a moment to finish rebuilding the display state.
+sleep 2
+
+xset dpms force on >/dev/null 2>&1 || true
+autorandr --change --force >/dev/null 2>&1 || true
+"$HOME/.local/bin/picom-session" >/dev/null 2>&1 || true

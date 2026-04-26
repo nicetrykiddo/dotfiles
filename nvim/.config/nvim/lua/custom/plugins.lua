@@ -134,6 +134,7 @@ local plugins = {
   {
     "nvim-treesitter/nvim-treesitter",
     branch = "master",
+    lazy = false,
     opts = function()
       local opts = require "plugins.configs.treesitter"
       opts.ensure_installed = {
@@ -159,12 +160,23 @@ local plugins = {
         "gosum",
         "gowork",
         "rust",
+        "gitignore",
+        "git_config",
+        "toml",
+        "markdown",
+        "markdown_inline",
+        "diff",
+        "query",
+        "regex",
+        "rasi",
+        "ssh_config",
+        "tmux",
+        "hyprlang",
         "c_sharp",
         "c",
         "cpp",
         "asm",
       }
-      opts.auto_install = true
       return opts
     end,
   },

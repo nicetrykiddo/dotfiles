@@ -1,0 +1,28 @@
+#!/bin/bash
+
+set -euo pipefail
+
+if [ "$#" -eq 0 ]; then
+  echo "usage: prime-sync-run <command> [args...]" >&2
+  exit 64
+fi
+
+sync_display="${PRIME_SYNC_DISPLAY:-}"
+
+if [ -z "$sync_display" ] && command -v xrandr >/dev/null 2>&1 && [ -n "${DISPLAY:-}" ]; then
+  sync_display="$(xrandr --query 2>/dev/null | awk '$2 == "connected" && $3 == "primary" && $1 !~ /^eDP/ { print $1; exit }')"
+  if [ -z "$sync_display" ]; then
+    sync_display="$(xrandr --query 2>/dev/null | awk '$2 == "connected" && $1 !~ /^eDP/ { print $1; exit }')"
+  fi
+fi
+
+export __NV_PRIME_RENDER_OFFLOAD=1
+export __VK_LAYER_NV_optimus=NVIDIA_only
+export __GLX_VENDOR_LIBRARY_NAME=nvidia
+export __GL_SYNC_TO_VBLANK=1
+
+if [ -n "$sync_display" ]; then
+  export __GL_SYNC_DISPLAY_DEVICE="$sync_display"
+fi
+
+exec "$@"

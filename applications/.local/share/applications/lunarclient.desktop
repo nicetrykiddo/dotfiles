@@ -1,0 +1,13 @@
+[Desktop Entry]
+Name=Lunar Client
+Exec=/home/nicetrykiddo/.local/bin/game-run env DESKTOPINTEGRATION=false /usr/bin/lunarclient --no-sandbox %U
+Terminal=false
+Type=Application
+Icon=/home/nicetrykiddo/Pictures/lunarclienticon.png
+StartupWMClass=Lunar Client
+X-AppImage-Version=3.5.22-ow
+Comment=Electron launcher for Lunar Client
+Categories=Game;
+StartupNotify=false
+MimeType=x-scheme-handler/discord-562286213059444737;application/x-lcpack;x-scheme-handler/lunarclient;
+PrefersNonDefaultGPU=true

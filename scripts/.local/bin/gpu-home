@@ -1,0 +1,15 @@
+#!/bin/bash
+
+set -euo pipefail
+
+current_mode="$(optimus-manager --print-mode 2>/dev/null || true)"
+current_mode="${current_mode##*: }"
+
+if [ "$current_mode" = "nvidia" ]; then
+  echo "Already using NVIDIA mode."
+  exit 0
+fi
+
+echo "Switching to NVIDIA mode for the next login."
+echo "This closes the current graphical session after confirmation."
+exec optimus-manager --switch nvidia

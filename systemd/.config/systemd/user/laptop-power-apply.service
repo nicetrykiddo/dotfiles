@@ -3,6 +3,7 @@ Description=Apply laptop AC/battery power policy
 
 [Service]
 Type=oneshot
+KillMode=process
 Environment=DISPLAY=:0
 Environment=XAUTHORITY=%h/.Xauthority
 ExecStart=%h/.local/bin/laptop-power-apply

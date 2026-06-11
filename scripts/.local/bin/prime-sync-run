@@ -19,7 +19,7 @@ fi
 export __NV_PRIME_RENDER_OFFLOAD=1
 export __VK_LAYER_NV_optimus=NVIDIA_only
 export __GLX_VENDOR_LIBRARY_NAME=nvidia
-export __GL_SYNC_TO_VBLANK=1
+export __GL_SYNC_TO_VBLANK="${PRIME_SYNC_TO_VBLANK:-1}"
 
 if [ -n "$sync_display" ]; then
   export __GL_SYNC_DISPLAY_DEVICE="$sync_display"

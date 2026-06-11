@@ -7,6 +7,9 @@ if [ "$#" -eq 0 ]; then
   exit 64
 fi
 
+# Electron apps launched from an editor terminal must not inherit Node mode.
+unset ELECTRON_RUN_AS_NODE
+
 on_ac_power() {
   local supply
 
@@ -21,8 +24,21 @@ on_ac_power() {
 }
 
 if on_ac_power; then
+  current_mode="$(optimus-manager --print-mode 2>/dev/null || true)"
+  current_mode="${current_mode##*: }"
+
+  if [ "$current_mode" = "nvidia" ]; then
+    exec env \
+      -u __NV_PRIME_RENDER_OFFLOAD \
+      -u __VK_LAYER_NV_optimus \
+      -u __GLX_VENDOR_LIBRARY_NAME \
+      -u __GL_SYNC_DISPLAY_DEVICE \
+      __GL_SYNC_TO_VBLANK=0 \
+      "$@"
+  fi
+
   if [ -x "$HOME/.local/bin/prime-sync-run" ]; then
-    exec "$HOME/.local/bin/prime-sync-run" "$@"
+    PRIME_SYNC_TO_VBLANK=0 exec "$HOME/.local/bin/prime-sync-run" "$@"
   fi
 
   if command -v prime-run >/dev/null 2>&1; then

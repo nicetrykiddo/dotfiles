@@ -2,9 +2,6 @@
 
 set -euo pipefail
 
-# Optional overrides live here. Example:
-#   BATTERY_INTERNAL_RATE=144
-#   LOW_BATTERY_AUTO_SUSPEND=0
 CONFIG="${XDG_CONFIG_HOME:-$HOME/.config}/laptop-power.conf"
 [ -r "$CONFIG" ] && . "$CONFIG"
 
@@ -24,87 +21,88 @@ ENFORCE_DISPLAY_EACH_POLL="${ENFORCE_DISPLAY_EACH_POLL:-0}"
 STATE_FILE="${XDG_RUNTIME_DIR:-/tmp}/laptop-power-apply.state"
 source="unknown"
 alert_level=""
-
-if [ -r "$STATE_FILE" ]; then
-  # shellcheck disable=SC1090
-  . "$STATE_FILE"
-fi
+[ -r "$STATE_FILE" ] && . "$STATE_FILE"
 
 notify_user() {
-  local urgency="$1"
-  local title="$2"
-  local body="$3"
-
   command -v notify-send >/dev/null 2>&1 || return 0
-  notify-send -u "$urgency" "$title" "$body" >/dev/null 2>&1 || true
+  notify-send -u "$1" "$2" "$3" >/dev/null 2>&1 || true
 }
 
 on_ac_power() {
   local supply
-
   for supply in /sys/class/power_supply/*; do
     [ -r "$supply/type" ] || continue
-    [ "$(tr -d '\n' < "$supply/type")" = "Mains" ] || continue
+    [ "$(tr -d '\n' <"$supply/type")" = "Mains" ] || continue
     [ -r "$supply/online" ] || continue
-    [ "$(tr -d '\n' < "$supply/online")" = "1" ] && return 0
+    [ "$(tr -d '\n' <"$supply/online")" = "1" ] && return 0
   done
-
   return 1
 }
 
 battery_capacity() {
   local supply
-
   for supply in /sys/class/power_supply/*; do
     [ -r "$supply/type" ] || continue
-    [ "$(tr -d '\n' < "$supply/type")" = "Battery" ] || continue
+    [ "$(tr -d '\n' <"$supply/type")" = "Battery" ] || continue
     [ -r "$supply/capacity" ] || continue
-    tr -d '\n' < "$supply/capacity"
+    tr -d '\n' <"$supply/capacity"
     return 0
   done
-
   return 1
 }
 
 set_power_profile() {
-  local target="$1"
-  local current
-
+  local target="$1" current
   command -v powerprofilesctl >/dev/null 2>&1 || return 0
   current="$(powerprofilesctl get 2>/dev/null || true)"
-  [ "$current" = "$target" ] && return 0
-
-  powerprofilesctl set "$target" >/dev/null 2>&1 || true
+  [ "$current" = "$target" ] || powerprofilesctl set "$target" >/dev/null 2>&1 || true
 }
 
-internal_output() {
-  command -v xrandr >/dev/null 2>&1 || return 1
-  [ -n "${DISPLAY:-}" ] || return 1
-
-  xrandr --query 2>/dev/null | awk '$1 ~ /^eDP/ && $2 == "connected" { print $1; exit }'
+have_xrandr() {
+  [ -n "${DISPLAY:-}" ] && command -v xrandr >/dev/null 2>&1
 }
 
 connected_external_outputs() {
-  command -v xrandr >/dev/null 2>&1 || return 0
-  [ -n "${DISPLAY:-}" ] || return 0
-
+  have_xrandr || return 0
   xrandr --query 2>/dev/null | awk '$2 == "connected" && $1 !~ /^eDP/ { print $1 }'
 }
 
-set_internal_rate() {
-  local rate="$1"
-  local output
+primary_output() {
+  have_xrandr || return 0
+  xrandr --query 2>/dev/null | awk '$2 == "connected" && / primary / { print $1; exit }'
+}
 
+set_internal_rate() {
+  local rate="$1" output geom mode pos primary
   [ -n "$rate" ] || return 0
-  output="$(internal_output || true)"
+  have_xrandr || return 0
+  [ "$rate" = "$AC_INTERNAL_RATE" ] && [ "$rate" = "$BATTERY_INTERNAL_RATE" ] && return 0
+
+  primary="$(primary_output || true)"
+
+  output="$(xrandr --query 2>/dev/null | awk '$1 ~ /^eDP/ && $2 == "connected" { print $1; exit }')"
   [ -n "$output" ] || return 0
 
-  xrandr --output "$output" --rate "$rate" >/dev/null 2>&1 || true
+  geom="$(xrandr --query 2>/dev/null | awk -v o="$output" '
+    $1 == o && $2 == "connected" {
+      for (i = 3; i <= NF; i++)
+        if ($i ~ /^[0-9]+x[0-9]+\+[0-9]+\+[0-9]+/) { print $i; exit }
+    }')"
+  [ -n "$geom" ] || return 0
+
+  mode="${geom%%+*}"
+  pos="${geom#*+}"
+  pos="${pos//+/x}"
+
+  xrandr --output "$output" --mode "$mode" --rate "$rate" --pos "$pos" >/dev/null 2>&1 || true
+
+  if [ -n "$primary" ]; then
+    xrandr --output "$primary" --primary >/dev/null 2>&1 || true
+  fi
 }
 
 disable_external_outputs() {
   local output
-
   [ "$DISABLE_EXTERNAL_ON_BATTERY" = "1" ] || return 0
   while IFS= read -r output; do
     [ -n "$output" ] || continue
@@ -115,45 +113,26 @@ disable_external_outputs() {
 set_brightness() {
   [ -n "$BATTERY_BRIGHTNESS" ] || return 0
   command -v brightnessctl >/dev/null 2>&1 || return 0
-
   brightnessctl -q set "$BATTERY_BRIGHTNESS" >/dev/null 2>&1 || true
 }
 
 restart_picom_for_profile() {
   [ "$RESTART_PICOM_ON_POWER_CHANGE" = "1" ] || return 0
   [ -x "$HOME/.local/bin/picom-power.sh" ] || return 0
-
   "$HOME/.local/bin/picom-power.sh" >/dev/null 2>&1 || true
 }
 
-write_state() {
-  local new_source="$1"
-  local new_alert_level="$2"
-
-  {
-    printf "source='%s'\n" "$new_source"
-    printf "alert_level='%s'\n" "$new_alert_level"
-  } > "$STATE_FILE"
-}
-
 handle_low_battery() {
-  local capacity="$1"
-  local threshold=""
-  local level
-  local urgency="normal"
-
+  local capacity="$1" threshold="" level urgency="normal"
   for level in $LOW_BATTERY_WARN_LEVELS; do
-    if [ "$capacity" -le "$level" ]; then
-      threshold="$level"
-    fi
+    [ "$capacity" -le "$level" ] && threshold="$level"
   done
-
   if [ -n "$threshold" ] && [ "$threshold" != "$alert_level" ]; then
     [ "$threshold" -le 10 ] && urgency="critical"
-    notify_user "$urgency" "Battery ${capacity}%" "Plug in soon. Auto-suspend is armed at ${LOW_BATTERY_SUSPEND_LEVEL}%."
+    notify_user "$urgency" "Battery ${capacity}%" \
+      "Plug in soon. Auto-suspend is armed at ${LOW_BATTERY_SUSPEND_LEVEL}%."
     alert_level="$threshold"
   fi
-
   if [ "$LOW_BATTERY_AUTO_SUSPEND" = "1" ] && [ "$capacity" -le "$LOW_BATTERY_SUSPEND_LEVEL" ]; then
     notify_user critical "Battery ${capacity}%" "Suspending to avoid deep discharge."
     sleep 3
@@ -170,11 +149,9 @@ if on_ac_power; then
   if [ "$previous_source" != "$source" ] || [ "$ENFORCE_PROFILE_EACH_POLL" = "1" ]; then
     set_power_profile "$AC_PROFILE"
   fi
-
   if [ "$previous_source" != "$source" ] || [ "$ENFORCE_DISPLAY_EACH_POLL" = "1" ]; then
     set_internal_rate "$AC_INTERNAL_RATE"
   fi
-
   if [ "$previous_source" != "$source" ]; then
     restart_picom_for_profile
     notify_user low "Power connected" "Profile: ${AC_PROFILE}"
@@ -185,27 +162,25 @@ else
   if [ "$previous_source" != "$source" ] || [ "$ENFORCE_PROFILE_EACH_POLL" = "1" ]; then
     set_power_profile "$BATTERY_PROFILE"
   fi
-
   if [ "$previous_source" != "$source" ] || [ "$ENFORCE_DISPLAY_EACH_POLL" = "1" ]; then
     set_internal_rate "$BATTERY_INTERNAL_RATE"
     disable_external_outputs
     set_brightness
   fi
-
   if [ "$previous_source" != "$source" ]; then
-    externals="$(connected_external_outputs | tr '\n' ' ' | sed 's/[[:space:]]*$//')"
     restart_picom_for_profile
+    externals="$(connected_external_outputs | tr '\n' ' ' | sed 's/[[:space:]]*$//')"
     if [ -n "$externals" ] && [ "$DISABLE_EXTERNAL_ON_BATTERY" != "1" ]; then
-      notify_user critical "Running on battery" "Profile: ${BATTERY_PROFILE}, internal ${BATTERY_INTERNAL_RATE}Hz. External still connected: ${externals}"
+      notify_user critical "Running on battery" \
+        "Profile: ${BATTERY_PROFILE}, internal ${BATTERY_INTERNAL_RATE}Hz. External still connected: ${externals}"
     else
-      notify_user normal "Running on battery" "Profile: ${BATTERY_PROFILE}, internal ${BATTERY_INTERNAL_RATE}Hz"
+      notify_user normal "Running on battery" \
+        "Profile: ${BATTERY_PROFILE}, internal ${BATTERY_INTERNAL_RATE}Hz"
     fi
   fi
 
   capacity="$(battery_capacity || true)"
-  if [[ "$capacity" =~ ^[0-9]+$ ]]; then
-    handle_low_battery "$capacity"
-  fi
+  [[ "$capacity" =~ ^[0-9]+$ ]] && handle_low_battery "$capacity"
 fi
 
-write_state "$source" "$alert_level"
+printf "source='%s'\nalert_level='%s'\n" "$source" "$alert_level" >"$STATE_FILE"

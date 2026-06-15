@@ -1,5 +1,6 @@
 [Unit]
 Description=Apply laptop AC/battery power policy
+StartLimitIntervalSec=0
 
 [Service]
 Type=oneshot

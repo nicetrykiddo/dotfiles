@@ -1,0 +1,10 @@
+[Unit]
+Description=Watch AC plug/unplug for laptop-power-apply
+
+[Path]
+PathExists=/sys/class/power_supply/ACAD/online
+PathChanged=/sys/class/power_supply/ACAD/online
+Unit=laptop-power-apply.service
+
+[Install]
+WantedBy=default.target

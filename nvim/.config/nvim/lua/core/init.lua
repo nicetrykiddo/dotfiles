@@ -129,7 +129,12 @@ vim.api.nvim_create_autocmd({ "UIEnter", "BufEnter", "BufReadPost", "BufNewFile"
     local buftype = vim.bo[bufnr].buftype
 
     if file ~= "" and buftype ~= "nofile" and vim.g.ui_entered then
-      vim.api.nvim_exec_autocmds("User", { pattern = "FilePost", modeline = false, buffer = bufnr })
+      vim.api.nvim_buf_call(bufnr, function()
+        vim.api.nvim_exec_autocmds("User", {
+          pattern = "FilePost",
+          modeline = false,
+        })
+      end)
       pcall(vim.api.nvim_del_augroup_by_name, "NvFilePost")
 
       vim.schedule(function()
